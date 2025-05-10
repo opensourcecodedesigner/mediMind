@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Medical Report Chatbot</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; margin-bottom: 10px; }
+        .user { color: blue; }
+        .bot { color: green; }
+        #summary { background: #f9f9f9; padding: 10px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h2>Medical Report Chatbot</h2>
+    <form id="uploadForm">
+        <input type="file" id="pdfFile" accept="application/pdf" required>
+        <button type="submit">Upload PDF</button>
+    </form>
+    <div id="summary"></div>
+    <div id="chat"></div>
+    <form id="chatForm">
+        <input type="text" id="question" placeholder="Ask a question..." required autocomplete="off">
+        <button type="submit">Send</button>
+    </form>
+    <script>
+        const chat = document.getElementById('chat');
+        const summaryDiv = document.getElementById('summary');
+        let chatHistory = [];
+
+        document.getElementById('uploadForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('pdfFile');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            summaryDiv.textContent = 'Uploading and summarizing...';
+            const res = await fetch('/upload', { method: 'POST', body: formData });
+            const data = await res.json();
+            if (data.summary) {
+                summaryDiv.innerHTML = '<b>Summary:</b> ' + data.summary;
+                chat.innerHTML = '';
+                chatHistory = [];
+            } else {
+                summaryDiv.textContent = data.error || 'Error uploading file.';
+            }
+        };
+
+        document.getElementById('chatForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const question = document.getElementById('question').value;
+            chatHistory.push({ sender: 'user', text: question });
+            updateChat();
+            document.getElementById('question').value = '';
+            const res = await fetch('/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question })
+            });
+            const data = await res.json();
+            chatHistory.push({ sender: 'bot', text: data.answer || data.error });
+            updateChat();
+        };
+
+        function updateChat() {
+            chat.innerHTML = chatHistory.map(msg =>
+                `<div class="${msg.sender}"><b>${msg.sender === 'user' ? 'You' : 'Bot'}:</b> ${msg.text}</div>`
+            ).join('');
+            chat.scrollTop = chat.scrollHeight;
+        }
+    </script>
+</body>
+</html> 
